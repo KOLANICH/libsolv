@@ -1,6 +1,6 @@
 PROJECT (libsolv)
 
-CMAKE_MINIMUM_REQUIRED (VERSION 2.8.5)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.10.2)
 
 OPTION (ENABLE_STATIC "Build a static version of the libraries?" OFF)
 OPTION (DISABLE_SHARED "Do not build a shared version of the libraries?" OFF)
@@ -55,6 +55,9 @@ ENDIF (NOT PKGCONFIG_INSTALL_DIR)
 # CONFIGURATION                                                    #
 ####################################################################
 
+include(CPackComponent)
+SET (PACKAGE "libsolv")
+
 # where to look first for cmake modules, before ${CMAKE_ROOT}/Modules/ is checked
 SET (OUR_MODULES_DIR "${CMAKE_SOURCE_DIR}/cmake/modules")
 SET (CMAKE_MODULE_PATH "${OUR_MODULES_DIR}")
@@ -96,6 +99,7 @@ SET (ENABLE_RPMMD ON)
 SET (ENABLE_SUSEREPO ON)
 SET (ENABLE_HELIXREPO ON)
 SET (ENABLE_LINKED_PKGS ON)
+SET (ENABLE_COMPLEX_DEPS ON)
 SET (have_system ${have_system}x)
 ENDIF (SUSE)
 
@@ -328,19 +332,35 @@ FOREACH (VAR
   ENDIF (${VAR})
 ENDFOREACH (VAR)
 
-SET (PACKAGE "libsolv")
 SET (VERSION "${LIBSOLV_MAJOR}.${LIBSOLV_MINOR}.${LIBSOLV_PATCH}")
 
 ADD_DEFINITIONS (-D_FILE_OFFSET_BITS=64)
 CONFIGURE_FILE (src/solvversion.h.in src/solvversion.h)
 
-SET (CPACK_PACKAGE_DESCRIPTION_SUMMARY "Package dependency solver library")
+macro(pass_through_cpack_vars)
+  get_cmake_property(cpackVarsToPassthrough VARIABLES)
+  foreach(varName ${cpackVarsToPassthrough})
+    if(varName MATCHES "^CPACK_DEBIAN_")
+      message(STATUS "${varName}")
+      set("${varName}" "${${varName}}" PARENT_SCOPE)
+    endif()
+  endforeach()
+endmacro()
+
 SET (CPACK_PACKAGE_VENDOR "SUSE")
+SET (CPACK_PACKAGE_CONTACT "https://github.com/openSUSE/libsolv")
 SET (CPACK_PACKAGE_VERSION_MAJOR ${LIBSOLV_MAJOR})
 SET (CPACK_PACKAGE_VERSION_MINOR ${LIBSOLV_MINOR})
 SET (CPACK_PACKAGE_VERSION_PATCH ${LIBSOLV_PATCH})
-SET (CPACK_GENERATOR "TBZ2")
+
+SET (CPACK_COMPONENT_LIBSOLV_DESCRIPTION_SUMMARY "Package dependency solver library")
+SET (CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_SOURCE_DIR}/CPack.libsolv.description.txt")
+
+if (NOT DEFINED CPACK_GENERATOR)
+  SET (CPACK_GENERATOR "TBZ2")
+endif ()
 SET (CPACK_SOURCE_GENERATOR "TBZ2")
+
 SET (CPACK_SOURCE_PACKAGE_FILE_NAME "${PACKAGE}-${VERSION}")
 SET (CPACK_SOURCE_TOPLEVEL_TAG "Linux-Source:")
 SET (CPACK_TOPLEVEL_TAG "Linux-Source:")
@@ -384,7 +404,6 @@ SET (CPACK_SOURCE_IGNORE_FILES
 "libsolv.spec$"
 )
 
-INCLUDE(CPack)
 
 ####################################################################
 # INCLUDES                                                         #
@@ -448,6 +467,10 @@ ADD_SUBDIRECTORY (tools)
 IF (ENABLE_PERL OR ENABLE_PYTHON OR ENABLE_PYTHON3 OR ENABLE_RUBY OR ENABLE_TCL)
     ADD_SUBDIRECTORY (bindings)
 ENDIF (ENABLE_PERL OR ENABLE_PYTHON OR ENABLE_PYTHON3 OR ENABLE_RUBY OR ENABLE_TCL)
+
+set(CPACK_RPM_COMPONENT_INSTALL ON)
+set(CPACK_DEB_COMPONENT_INSTALL ON)
+
 ADD_SUBDIRECTORY (examples)
 ADD_SUBDIRECTORY (doc)
 
@@ -465,9 +488,9 @@ ENDMACRO (SPECFILE)
 MACRO (PCFILE)
   MESSAGE (STATUS "Writing pkg-config files...")
   CONFIGURE_FILE (${CMAKE_SOURCE_DIR}/libsolv.pc.in ${CMAKE_BINARY_DIR}/libsolv.pc @ONLY)
-  INSTALL( FILES ${CMAKE_BINARY_DIR}/libsolv.pc DESTINATION ${PKGCONFIG_INSTALL_DIR} )
+  INSTALL( FILES ${CMAKE_BINARY_DIR}/libsolv.pc DESTINATION ${PKGCONFIG_INSTALL_DIR} COMPONENT "libsolv-dev" )
   CONFIGURE_FILE (${CMAKE_SOURCE_DIR}/libsolvext.pc.in ${CMAKE_BINARY_DIR}/libsolvext.pc @ONLY)
-  INSTALL( FILES ${CMAKE_BINARY_DIR}/libsolvext.pc DESTINATION ${PKGCONFIG_INSTALL_DIR} )
+  INSTALL( FILES ${CMAKE_BINARY_DIR}/libsolvext.pc DESTINATION ${PKGCONFIG_INSTALL_DIR} COMPONENT "libsolv-dev" )
 ENDMACRO (PCFILE)
 
 SPECFILE ()
@@ -492,3 +515,5 @@ ADD_CUSTOM_TARGET (srcpackage_local
 
 ENABLE_TESTING()
 ADD_SUBDIRECTORY (test)
+
+INCLUDE(CPack)

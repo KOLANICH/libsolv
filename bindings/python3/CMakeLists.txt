@@ -29,5 +29,14 @@ ADD_LIBRARY (bindings_python3 SHARED solv_python.c)
 SET_TARGET_PROPERTIES (bindings_python3 PROPERTIES PREFIX "" OUTPUT_NAME "_solv")
 TARGET_LINK_LIBRARIES (bindings_python3 libsolvext libsolv ${SYSTEM_LIBRARIES})
 
+cpack_add_component("python3"
+    DEPENDS "libsolv"
+)
+set("CPACK_DEBIAN_PYTHON3_PACKAGE_NAME" "python3-${PACKAGE}")
+set ("CPACK_DEBIAN_PYTHON3_PACKAGE_PROVIDES" "python3-${PACKAGE}")
+
 INSTALL (TARGETS bindings_python3 LIBRARY DESTINATION ${Python3_STDARCH} COMPONENT "python3" )
 INSTALL (FILES ${CMAKE_CURRENT_BINARY_DIR}/solv.py DESTINATION ${Python3_STDARCH} COMPONENT "python3" )
+
+set ("CPACK_DEBIAN_PYTHON3_PACKAGE_DEPENDS" "libpython${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR} (>=${Python3_VERSION}~), python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR} (>=${Python3_VERSION}~), ${CPACK_DEBIAN_LIBSOLV_PACKAGE_NAME}")
+pass_through_cpack_vars()
